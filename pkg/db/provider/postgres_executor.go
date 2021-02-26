@@ -40,7 +40,7 @@ func (pe postgresExecutor) Exec(sql string, args ...interface{}) (sql.Result, er
 	return result, nil
 }
 
-func (pe postgresExecutor) Query(sql string, args ...interface{}) (*sql.Rows, error) {
+func (pe postgresExecutor) Query(mapper RowMapper, sql string, args ...interface{}) ([]interface{}, error) {
 	conn := pe.pc.DBConnection()
 	tx, err := conn.Begin()
 	if err != nil {
@@ -59,14 +59,20 @@ func (pe postgresExecutor) Query(sql string, args ...interface{}) (*sql.Rows, er
 	if err != nil {
 		return nil, ErrPGRunQuery
 	}
+
+	entities, err := mapper.MapRows(result)
+	if err != nil {
+		return nil, ErrPGMapper
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, ErrPGCommit
 	}
-	return result, nil
+	return entities, nil
 }
 
-func (pe postgresExecutor) QueryRow(sql string, args ...interface{}) (*sql.Row, error) {
+func (pe postgresExecutor) QueryRow(mapper RowMapper, sql string, args ...interface{}) (interface{}, error) {
 	conn := pe.pc.DBConnection()
 	tx, err := conn.Begin()
 	if err != nil {
@@ -85,11 +91,15 @@ func (pe postgresExecutor) QueryRow(sql string, args ...interface{}) (*sql.Row, 
 	if err != nil {
 		return nil, ErrPGRunQuery
 	}
+	entity, err := mapper.MapRow(result)
+	if err != nil {
+		return nil, ErrPGMapper
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, ErrPGCommit
 	}
-	return result, nil
+	return entity, nil
 }
 
 func (pe postgresExecutor) txExec(tx *sql.Tx, sqlCommand string, args []interface{}) (sql.Result, error) {

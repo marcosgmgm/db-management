@@ -12,6 +12,7 @@ var (
 	ErrPGUniqueViolation   = errors.New("error unique_violation")
 	ErrPGCreateStm         = errors.New("error create stmt")
 	ErrPGRunQuery          = errors.New("error running query")
+	ErrPGMapper            = errors.New("error mapper")
 )
 
 const PgCodeUniqueViolation = "23505"
@@ -21,8 +22,13 @@ type PostgresConnector interface {
 	PingLoop()
 }
 
+type RowMapper interface {
+	MapRow(row *sql.Row) (interface{}, error)
+	MapRows(rows *sql.Rows) ([]interface{}, error)
+}
+
 type PostgresExecutor interface {
 	Exec(sql string, args ...interface{}) (sql.Result, error)
-	Query(sql string, args ...interface{}) (*sql.Rows, error)
-	QueryRow(sql string, args ...interface{}) (*sql.Row, error)
+	Query(mapper RowMapper, sql string, args ...interface{}) ([]interface{}, error)
+	QueryRow(mapper RowMapper, sql string, args ...interface{}) (interface{}, error)
 }
