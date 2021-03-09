@@ -2,6 +2,7 @@ package provider
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/jackc/pgconn"
 )
 
@@ -15,7 +16,7 @@ func NewPostgresExecutor(pc PostgresConnector) PostgresExecutor {
 	}
 }
 
-func (pe postgresExecutor) Exec(sql string, args ...interface{}) (sql.Result, error) {
+func (pe postgresExecutor) Exec(schema, sql string, args ...interface{}) (sql.Result, error) {
 
 	conn := pe.pc.DBConnection()
 	tx, err := conn.Begin()
@@ -26,6 +27,10 @@ func (pe postgresExecutor) Exec(sql string, args ...interface{}) (sql.Result, er
 	defer func() {
 		_ = tx.Rollback()
 	}()
+
+	if err := pe.txSetSchema(tx, schema); err != nil {
+		return nil, err
+	}
 
 	result, err := pe.txExec(tx, sql, args)
 	if err != nil {
@@ -40,7 +45,7 @@ func (pe postgresExecutor) Exec(sql string, args ...interface{}) (sql.Result, er
 	return result, nil
 }
 
-func (pe postgresExecutor) Query(mapper RowMapper, sql string, args ...interface{}) ([]interface{}, error) {
+func (pe postgresExecutor) Query(mapper RowMapper, schema, sql string, args ...interface{}) ([]interface{}, error) {
 	conn := pe.pc.DBConnection()
 	tx, err := conn.Begin()
 	if err != nil {
@@ -50,6 +55,10 @@ func (pe postgresExecutor) Query(mapper RowMapper, sql string, args ...interface
 	defer func() {
 		_ = tx.Rollback()
 	}()
+
+	if err := pe.txSetSchema(tx, schema); err != nil {
+		return nil, err
+	}
 
 	stm, err := tx.Prepare(sql)
 	if err != nil {
@@ -72,7 +81,7 @@ func (pe postgresExecutor) Query(mapper RowMapper, sql string, args ...interface
 	return entities, nil
 }
 
-func (pe postgresExecutor) QueryRow(mapper RowMapper, sql string, args ...interface{}) (interface{}, error) {
+func (pe postgresExecutor) QueryRow(mapper RowMapper, schema, sql string, args ...interface{}) (interface{}, error) {
 	conn := pe.pc.DBConnection()
 	tx, err := conn.Begin()
 	if err != nil {
@@ -82,6 +91,10 @@ func (pe postgresExecutor) QueryRow(mapper RowMapper, sql string, args ...interf
 	defer func() {
 		_ = tx.Rollback()
 	}()
+
+	if err := pe.txSetSchema(tx, schema); err != nil {
+		return nil, err
+	}
 
 	stm, err := tx.Prepare(sql)
 	if err != nil {
@@ -119,4 +132,14 @@ func (pe postgresExecutor) txExec(tx *sql.Tx, sqlCommand string, args []interfac
 		return nil, resultErr
 	}
 	return result, nil
+}
+
+func (pe postgresExecutor) txSetSchema(tx *sql.Tx, schema string) error {
+	if len(schema) > 0 {
+		_, err := tx.Exec(fmt.Sprintf("set search_path='%s'", schema))
+		if err != nil {
+			return ErrPGSetSchema
+		}
+	}
+	return nil
 }

@@ -13,6 +13,7 @@ var (
 	ErrPGCreateStm         = errors.New("error create stmt")
 	ErrPGRunQuery          = errors.New("error running query")
 	ErrPGMapper            = errors.New("error mapper")
+	ErrPGSetSchema         = errors.New("error set schema")
 )
 
 const PgCodeUniqueViolation = "23505"
@@ -28,7 +29,7 @@ type RowMapper interface {
 }
 
 type PostgresExecutor interface {
-	Exec(sql string, args ...interface{}) (sql.Result, error)
-	Query(mapper RowMapper, sql string, args ...interface{}) ([]interface{}, error)
-	QueryRow(mapper RowMapper, sql string, args ...interface{}) (interface{}, error)
+	Exec(schema, sql string, args ...interface{}) (sql.Result, error)
+	Query(mapper RowMapper, schema, sql string, args ...interface{}) ([]interface{}, error)
+	QueryRow(mapper RowMapper, schema, sql string, args ...interface{}) (interface{}, error)
 }
